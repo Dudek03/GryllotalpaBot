@@ -1,5 +1,3 @@
-import asyncio
-
 from discord.ext import commands
 from discord.app_commands.commands import Command
 
