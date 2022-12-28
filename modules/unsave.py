@@ -4,18 +4,20 @@ from discord.ext import commands
 from discord.app_commands.commands import Command
 from discord import Embed, Color
 from discord.interactions import Interaction
+from utils.command import command
+from utils.errors import DiscordException
 
 
 async def setup(bot: commands.Bot):
-    @bot.hybrid_command()
-    async def create_unsave(ctx: commands.Context, name: str, code: str, description: Optional[str] = ""):
+    @command(group=bot)
+    async def create_unsave(ctx: commands.Context, name: str, code: str, description: Optional[str] = "..."):
         guild = ctx.interaction.guild
 
         async def callback(interaction: Interaction) -> None:
             await execute(interaction, code)
 
         bot.tree.add_command(
-            Command(name=name, description="...", callback=callback), guild=guild)
+            Command(name=name, description=description, callback=callback), guild=guild)
         await ctx.interaction.response.send_message(
             embed=Embed(color=Color.green(), title=f"Created /{name}",
                         description=f"Successfully created command `{name}`"))
@@ -25,10 +27,7 @@ async def setup(bot: commands.Bot):
     async def remove_command(ctx: commands.Context, name: str):
         guild = ctx.interaction.guild
         if not bot.tree.get_command(name, guild=guild):
-            await ctx.interaction.response.send_message(
-                embed=Embed(color=Color.red(), title="Error", description=f"Command `{name}` not found"),
-                ephemeral=True)
-            return
+            raise DiscordException(f"Command `{name}` not found")
         bot.tree.remove_command(name, guild=guild)
         await ctx.interaction.response.send_message(
             embed=Embed(color=Color.green(), title="Deleted", description=f"Command `{name}` deleted"))
@@ -43,5 +42,4 @@ async def setup(bot: commands.Bot):
 
             return await locals()['__ex'](interaction)
         except Exception as e:
-            await interaction.response.send_message(embed=Embed(color=Color.red(), title="Error", description=str(e)),
-                                                    ephemeral=True)
+            raise DiscordException(str(e))
