@@ -1,0 +1,2 @@
+class DiscordException(Exception):
+    pass
