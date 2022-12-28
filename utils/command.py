@@ -26,7 +26,9 @@ def command(group, *args, **kwargs):
                     ephemeral=True)
             except Exception as e:
                 await ctx.interaction.response.send_message(
-                    embed=Embed(color=Color.red(), title="Error", description="Something went wrong 😥"),
+                    embed=Embed(color=Color.red(),
+                                title="Error",
+                                description="Something went wrong 😥"),
                     ephemeral=True)
                 logger = logging.getLogger(f'discord.custom.command.{func.__name__}')
                 logger.error(e)
