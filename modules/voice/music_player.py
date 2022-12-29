@@ -1,7 +1,7 @@
 import asyncio
+from random import shuffle
 
 import discord
-from random import shuffle
 
 from modules.voice.yt import YTDLSource
 
@@ -13,11 +13,12 @@ class Queue(asyncio.Queue):
 
 class MusicPlayer:
 
-    def __init__(self, ctx):
+    def __init__(self, ctx, ui):
         self.bot = ctx.bot
         self._guild = ctx.guild
         self._channel = ctx.channel
         self._cog = ctx.cog
+        self._ui = ui
 
         self.queue = Queue()
         self.next = asyncio.Event()
@@ -30,6 +31,7 @@ class MusicPlayer:
 
     async def player_loop(self):
         """Our main player loop."""
+        await self._ui.update()
         await self.bot.wait_until_ready()
 
         while not self.bot.is_closed():
@@ -39,7 +41,7 @@ class MusicPlayer:
                 async with asyncio.timeout(300):  # 5 minutes...
                     source = await self.queue.get()
             except asyncio.TimeoutError:
-                return self.destroy(self._guild)
+                return await self.destroy(self._guild)
 
             if not isinstance(source, YTDLSource):
                 # Source was probably a stream (not downloaded)
@@ -62,18 +64,33 @@ class MusicPlayer:
                 source,
                 after=lambda _: self.bot.loop.call_soon_threadsafe(self.next.set),
             )
-            embed = discord.Embed(
-                title="Now playing",
-                description=f"[{source.title}]({source.web_url}) [{source.requester.mention}]",
-                color=discord.Color.green(),
-            )
-            self.np = await self._channel.send(embed=embed)
+
+            # TODO: Option to enable this
+            if False:
+                embed = discord.Embed(
+                    title="Now playing",
+                    description=f"[{source.title}]({source.web_url}) [{source.requester.mention}]",
+                    color=discord.Color.green(),
+                )
+                self.np = await self._channel.send(embed=embed)
+
+            await self.update_ui()
             await self.next.wait()
 
             # Make sure the FFmpeg process is cleaned up.
             # source.cleanup()
             self.current = None
 
-    def destroy(self, guild):
+    async def update_ui(self):
+        if self._ui is not None:
+            await self._ui.update()
+
+    async def add_to_queue(self, sources):
+        for source in sources:
+            await self.queue.put(source)
+
+    async def destroy(self, guild):
         """Disconnect and cleanup the player."""
-        return self.bot.loop.create_task(self._cog.cleanup(guild))
+        res = self.bot.loop.create_task(self._cog.cleanup(guild))
+        await self.update_ui()
+        return res

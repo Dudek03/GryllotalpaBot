@@ -1,15 +1,15 @@
 import asyncio
 import itertools
-from random import random
 
 import discord
 from discord.ext import commands
 
+from modules.voice.music_player import MusicPlayer
+from modules.voice.ui import UI
+from modules.voice.utils import get_duration
 from modules.voice.yt import YTDLSource
 from utils.command import command
 from utils.errors import DiscordException
-
-from modules.voice.music_player import MusicPlayer
 
 
 class Music(commands.GroupCog, group_name='voice'):
@@ -17,6 +17,7 @@ class Music(commands.GroupCog, group_name='voice'):
     def __init__(self, bot):
         self.bot = bot
         self.players = {}
+        self.uis = {}
 
     async def cleanup(self, guild):
         try:
@@ -36,14 +37,52 @@ class Music(commands.GroupCog, group_name='voice'):
         return True
 
     def get_player(self, ctx):
-        """Retrieve the guild player, or generate one."""
         try:
             player = self.players[ctx.guild.id]
         except KeyError:
-            player = MusicPlayer(ctx)
+            player = MusicPlayer(ctx, self.uis.get(ctx.guild.id))
             self.players[ctx.guild.id] = player
 
         return player
+
+    def get_ui(self, ctx):
+        return self.uis.get(ctx.guild.id)
+
+    async def update_ui(self, ctx):
+        ui = self.get_ui(ctx)
+        if ui is not None:
+            await ui.update()
+
+    async def join(self, channel, vc):
+        if vc:
+            if vc.channel.id == channel.id:
+                return
+            try:
+                await vc.move_to(channel)
+            except asyncio.TimeoutError:
+                raise DiscordException(f"Moving to channel: <{channel}> timed out.")
+        else:
+            try:
+                await channel.connect()
+            except asyncio.TimeoutError:
+                raise DiscordException(
+                    f"Connecting to channel: <{channel}> timed out."
+                )
+
+    async def play(self, ctx, search, count):
+        player = self.get_player(ctx)
+        sources = await YTDLSource.create_source(ctx.author, search, loop=self.bot.loop, count=count)
+        asyncio.ensure_future(player.add_to_queue(sources))
+
+        queue_str = '\n'.join([f"[{d['title']}]({d['webpage_url']})" for d in sources])
+        embed = discord.Embed(
+            title="",
+            description=f"Queued\n {queue_str}\n[{ctx.author.mention}]",
+            color=discord.Color.green(),
+        )
+        return embed
+
+    ######################################################################################
 
     @command(
         name="join", description="connects to voice"
@@ -64,22 +103,9 @@ class Music(commands.GroupCog, group_name='voice'):
                 )
 
         vc = ctx.voice_client
-
-        if vc:
-            if vc.channel.id == channel.id:
-                return
-            try:
-                await vc.move_to(channel)
-            except asyncio.TimeoutError:
-                raise DiscordException(f"Moving to channel: <{channel}> timed out.")
-        else:
-            try:
-                await channel.connect()
-            except asyncio.TimeoutError:
-                raise DiscordException(
-                    f"Connecting to channel: <{channel}> timed out."
-                )
+        await self.join(channel, vc)
         await ctx.send(f"**Joined `{channel}`**")
+        await self.update_ui(ctx)
 
     @command(name="play", description="streams music", long=True)
     async def play_(self, ctx, search: str, count=1):
@@ -88,19 +114,16 @@ class Music(commands.GroupCog, group_name='voice'):
         if not vc:
             raise DiscordException("Need to join first")
 
-        player = self.get_player(ctx)
+        embed = await self.play(ctx, search, count)
 
-        sources = await YTDLSource.create_source(ctx, search, loop=self.bot.loop, count=count)
-        for source in sources:
-            await player.queue.put(source)
+        await ctx.send(embed=embed)
+
+        await self.update_ui(ctx)
 
     @command(
         name="shuffle", description="make mess in queue"
     )
-    async def random_(
-        self,
-        ctx,
-    ):
+    async def random_(self, ctx):
         vc = ctx.voice_client
         if not vc:
             await ctx.invoke(self.connect_)
@@ -115,6 +138,7 @@ class Music(commands.GroupCog, group_name='voice'):
             color=discord.Color.green(),
         )
         await ctx.send(embed=embed)
+        await self.update_ui(ctx)
 
     @command(name="pause", description="pauses music")
     async def pause_(self, ctx):
@@ -132,6 +156,7 @@ class Music(commands.GroupCog, group_name='voice'):
 
         vc.pause()
         await ctx.send("Paused ⏸️")
+        await self.update_ui(ctx)
 
     @command(name="resume", description="resumes music")
     async def resume_(self, ctx):
@@ -148,7 +173,8 @@ class Music(commands.GroupCog, group_name='voice'):
             return
 
         vc.resume()
-        await ctx.send("Resuming ⏯️")
+        await ctx.send("Resuming ▶")
+        await self.update_ui(ctx)
 
     @command(
         name="skip", description="skips to next song in queue"
@@ -172,11 +198,10 @@ class Music(commands.GroupCog, group_name='voice'):
         await ctx.send(embed=embed)
 
         vc.stop()
+        await self.update_ui(ctx)
 
     @command(
-        name="remove",
-        aliases=["rm", "rem"],
-        description="removes specified song from queue",
+        name="remove", description="removes specified song from queue",
     )
     async def remove_(self, ctx, pos: int = None):
         vc = ctx.voice_client
@@ -199,6 +224,7 @@ class Music(commands.GroupCog, group_name='voice'):
                 await ctx.send(embed=embed)
             except:
                 raise DiscordException(f'Could not find a track for "{pos}"')
+        await self.update_ui(ctx)
 
     @command(
         name="clear", description="clears entire queue"
@@ -210,13 +236,14 @@ class Music(commands.GroupCog, group_name='voice'):
             raise DiscordException("I'm not connected to a voice channel")
 
         player = self.get_player(ctx)
-        player.queue.empty()
+        player.queue._queue.clear()
         await ctx.send("**Cleared**")
+        await self.update_ui(ctx)
 
     @command(
-        name="queue", aliases=["q", "playlist", "que"], description="shows the queue"
+        name="queue", description="shows the queue"
     )
-    async def queue_info(self, ctx):
+    async def queue_(self, ctx):
         vc = ctx.voice_client
 
         if not vc or not vc.is_connected():
@@ -229,26 +256,15 @@ class Music(commands.GroupCog, group_name='voice'):
             )
             return await ctx.send(embed=embed)
 
-        seconds = vc.source.duration % (24 * 3600)
-        hour = seconds // 3600
-        seconds %= 3600
-        minutes = seconds // 60
-        seconds %= 60
-        if hour > 0:
-            duration = "%dh %02dm %02ds" % (hour, minutes, seconds)
-        else:
-            duration = "%02dm %02ds" % (minutes, seconds)
-
-        # Grabs the songs in the queue...
         upcoming = list(
             itertools.islice(player.queue._queue, 0, int(len(player.queue._queue)))
         )
         fmt = "\n".join(
-            f"`{(upcoming.index(_)) + 1}.` [{_['title']}]({_['webpage_url']}) | ` {duration} Requested by: {_['requester']}`\n"
+            f"`{(upcoming.index(_)) + 1}.` [{_['title']}]({_['webpage_url']}) | `Requested by: {_['requester']}`\n"
             for _ in upcoming
         )
         fmt = (
-            f"\n__Now Playing__:\n[{vc.source.title}]({vc.source.web_url}) | ` {duration} Requested by: {vc.source.requester}`\n\n__Up Next:__\n"
+            f"\n__Now Playing__:\n[{vc.source.title}]({vc.source.web_url}) | ` {get_duration(ctx)} Requested by: {vc.source.requester}`\n\n__Up Next:__\n"
             + fmt
             + f"\n**{len(upcoming)} songs in queue**"
         )
@@ -261,70 +277,7 @@ class Music(commands.GroupCog, group_name='voice'):
         await ctx.send(embed=embed)
 
     @command(
-        name="now playing",
-        description="shows the current playing song",
-    )
-    async def now_playing_(self, ctx):
-        vc = ctx.voice_client
-
-        if not vc or not vc.is_connected():
-            raise DiscordException("I'm not connected to a voice channel")
-
-        player = self.get_player(ctx)
-        if not player.current:
-            raise DiscordException("I am currently not playing anything")
-
-        seconds = vc.source.duration % (24 * 3600)
-        hour = seconds // 3600
-        seconds %= 3600
-        minutes = seconds // 60
-        seconds %= 60
-        if hour > 0:
-            duration = "%dh %02dm %02ds" % (hour, minutes, seconds)
-        else:
-            duration = "%02dm %02ds" % (minutes, seconds)
-        embed = discord.Embed(
-            title="",
-            description=f"[{vc.source.title}]({vc.source.web_url}) [{vc.source.requester.mention}] | `{duration}`",
-            color=discord.Color.green(),
-        )
-        print(ctx)
-        await ctx.send(embed=embed)
-
-    @command(name="volume", aliases=["vol", "v"], description="Changes volume")
-    async def change_volume(self, ctx, *, vol: float = None):
-        vc = ctx.voice_client
-
-        if not vc or not vc.is_connected():
-            raise DiscordException("I'm not connected to a voice channel")
-
-        if not vol:
-            embed = discord.Embed(
-                title="",
-                description=f"🔊 **{(vc.source.volume) * 100}%**",
-                color=discord.Color.green(),
-            )
-            return await ctx.send(embed=embed)
-
-        if not 0 < vol < 101:
-            raise DiscordException("Please enter a value between 1 and 100")
-
-        player = self.get_player(ctx)
-
-        if vc.source:
-            vc.source.volume = vol / 100
-
-        player.volume = vol / 100
-        embed = discord.Embed(
-            title="",
-            description=f"**`{ctx.author}`** set the volume to **{vol}%**",
-            color=discord.Color.green(),
-        )
-        await ctx.send(embed=embed)
-
-    @command(
-        name="leave",
-        description="Stops music and disconnects from voice",
+        name="leave", description="Stops music and disconnects from voice",
     )
     async def leave_(self, ctx):
         vc = ctx.voice_client
@@ -335,3 +288,12 @@ class Music(commands.GroupCog, group_name='voice'):
         await ctx.send("**Successfully disconnected**")
 
         await self.cleanup(ctx.guild)
+        await self.update_ui(ctx)
+
+    @command(
+        name="ui", description="Open UI for voice module",
+    )
+    async def ui(self, ctx):
+        ui = UI(ctx, self)
+        await ui.init()
+        self.uis[ctx.guild.id] = ui

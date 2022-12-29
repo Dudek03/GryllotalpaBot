@@ -1,9 +1,9 @@
 import asyncio
 from functools import partial
 
-from youtube_dl import YoutubeDL
-import youtube_dl
 import discord
+import youtube_dl
+from youtube_dl import YoutubeDL
 
 from utils.errors import DiscordException
 
@@ -23,8 +23,6 @@ ytdlopts = {
     "source_address": "0.0.0.0",  # ipv6 addresses cause issues sometimes
 }
 
-ffmpegopts = {"before_options": "-nostdin", "options": "-vn"}
-
 ytdl = YoutubeDL(ytdlopts)
 
 
@@ -41,7 +39,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return self.__getattribute__(item)
 
     @classmethod
-    async def create_source(cls, ctx, search: str, *, loop, count):
+    async def create_source(cls, author, search: str, *, loop, count):
 
         loop = loop or asyncio.get_event_loop()
 
@@ -57,18 +55,9 @@ class YTDLSource(discord.PCMVolumeTransformer):
             else:
                 data = data["entries"][:count]
 
-        list = [f"[{d['title']}]({d['webpage_url']})" for d in data]
-        list = '\n'.join(list)
-        embed = discord.Embed(
-            title="",
-            description=f"Queued\n {list}\n[{ctx.author.mention}]",
-            color=discord.Color.green(),
-        )
-        await ctx.send(embed=embed)
-
         return [{
             "webpage_url": d["webpage_url"],
-            "requester": ctx.author,
+            "requester": author,
             "title": d["title"],
         } for d in data]
 
