@@ -19,6 +19,8 @@ def get_all_modules(src: str) -> list[str]:
     result = []
     for file in os.listdir(src):
         path = os.path.join(src, file)
+        if os.path.basename(path) == "__pycache__":
+            continue
         if os.path.isdir(path):
             result.extend(get_all_modules(path))
         else:
@@ -31,9 +33,11 @@ def get_all_modules(src: str) -> list[str]:
 def get_setup(module: str):
     try:
         return getattr(importlib.import_module(f"{module}"), "setup")
-    except TypeError:
+    except TypeError as e:
+        print(e)
         return None
-    except ModuleNotFoundError:
+    except ModuleNotFoundError as e:
+        print(e)
         return None
-    except AttributeError:
+    except AttributeError as e:
         return None
