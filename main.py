@@ -29,7 +29,7 @@ class CustomBot(commands.Bot):
     async def setup_hook(self) -> None:
         for extension in self.initial_extensions:
             await self.load_extension(extension)
-        if self.testing_guild_id:
+        if self.testing_guild_id and os.getenv('FORCE_SYNC', 'True') == "True":
             guild = discord.Object(self.testing_guild_id)
             self.tree.copy_global_to(guild=guild)
             await self.tree.sync(guild=guild)
