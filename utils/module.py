@@ -15,6 +15,8 @@ def get_all_modules(src: str) -> list[str]:
     result = []
     for file in os.listdir(src):
         path = os.path.join(src, file)
+        if os.path.basename(path) == "__pycache__":
+            continue
         if os.path.isdir(path):
             result.extend(get_all_modules(path))
         else:

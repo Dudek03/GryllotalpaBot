@@ -6,30 +6,60 @@ from discord import Embed, Color
 from utils.errors import DiscordException
 
 
-def command(group, *args, **kwargs):
+def command(group=None, long=False, *args, **kwargs):
+    if group is None:
+        group = commands
+
     def decorator(func):
         @group.hybrid_command(*args, **kwargs)
         @functools.wraps(func)
-        async def wrapper(ctx: commands.Context, *args, **kwargs):
-            value = None
+        async def wrapper(*args, **kwargs):
 
-            async def send(*args, **kwargs):
-                await ctx.interaction.response.send_message(*args, **kwargs, ephemeral=True)
+            value = None
+            ctx = None
+            for arg in args:
+                if isinstance(arg, commands.Context):
+                    ctx = arg
+                    break
+            if ctx is None:
+                raise Exception("Missing context")
+
+            if long:
+                await ctx.interaction.response.defer(ephemeral=True)
+
+            if long:
+                async def send(*args, **kwargs):
+                    await ctx.interaction.followup.send(*args, **kwargs, ephemeral=True)
+            else:
+                async def send(*args, **kwargs):
+                    await ctx.interaction.response.send_message(*args, **kwargs, ephemeral=True)
 
             ctx.send = send
 
             try:
-                value = await func(ctx, *args, **kwargs)
+                value = await func(*args, **kwargs)
             except DiscordException as e:
-                await ctx.interaction.response.send_message(
-                    embed=Embed(color=Color.red(), title="Error", description=str(e)),
-                    ephemeral=True)
+                if long:
+                    await ctx.interaction.followup.send(
+                        embed=Embed(color=Color.red(), title="Error", description=str(e)),
+                        ephemeral=True)
+                else:
+                    await ctx.interaction.response.send_message(
+                        embed=Embed(color=Color.red(), title="Error", description=str(e)),
+                        ephemeral=True)
             except Exception as e:
-                await ctx.interaction.response.send_message(
-                    embed=Embed(color=Color.red(),
-                                title="Error",
-                                description="Something went wrong 😥"),
-                    ephemeral=True)
+                if long:
+                    await ctx.interaction.followup.send(
+                        embed=Embed(color=Color.red(),
+                                    title="Error",
+                                    description="Something went wrong 😥"),
+                        ephemeral=True)
+                else:
+                    await ctx.interaction.response.send_message(
+                        embed=Embed(color=Color.red(),
+                                    title="Error",
+                                    description="Something went wrong 😥"),
+                        ephemeral=True)
                 logger = logging.getLogger(f'discord.custom.command.{func.__name__}')
                 logger.error(e)
 
