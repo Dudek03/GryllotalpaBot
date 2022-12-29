@@ -1,9 +1,13 @@
 import os
 import importlib
+import sys
 
 
 def path2module(path):
-    return os.path.normpath(path).replace("/", ".")
+    if sys.platform == "win32":
+        return os.path.normpath(path).replace("\\", ".")
+    else:
+        return os.path.normpath(path).replace("/", ".")
 
 
 def check_if_module_correct(src: str) -> bool:
