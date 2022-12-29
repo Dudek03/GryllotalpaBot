@@ -36,5 +36,4 @@ def get_setup(module: str):
         print(e)
         return None
     except AttributeError as e:
-        print(e)
         return None

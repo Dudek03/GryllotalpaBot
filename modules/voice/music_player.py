@@ -23,7 +23,6 @@ class MusicPlayer:
         self.queue = Queue()
         self.next = asyncio.Event()
 
-        self.np = None  # Now playing message
         self.volume = 0.5
         self.current = None
 
@@ -72,7 +71,7 @@ class MusicPlayer:
                     description=f"[{source.title}]({source.web_url}) [{source.requester.mention}]",
                     color=discord.Color.green(),
                 )
-                self.np = await self._channel.send(embed=embed)
+                await self._channel.send(embed=embed)
 
             await self.update_ui()
             await self.next.wait()

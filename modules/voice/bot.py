@@ -25,10 +25,8 @@ class Music(commands.GroupCog, group_name='voice'):
         except AttributeError:
             pass
 
-        try:
+        if self.players.get(guild.id) is not None:
             del self.players[guild.id]
-        except KeyError:
-            pass
 
     async def __local_check(self, ctx):
         """A local check which applies to all commands in this cog."""
@@ -71,7 +69,10 @@ class Music(commands.GroupCog, group_name='voice'):
 
     async def play(self, ctx, search, count):
         player = self.get_player(ctx)
-        sources = await YTDLSource.create_source(ctx.author, search, loop=self.bot.loop, count=count)
+        sources = await YTDLSource.create_source(ctx.author,
+                                                 search,
+                                                 loop=self.bot.loop,
+                                                 count=count)
         asyncio.ensure_future(player.add_to_queue(sources))
 
         queue_str = '\n'.join([f"[{d['title']}]({d['webpage_url']})" for d in sources])
