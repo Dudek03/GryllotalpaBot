@@ -33,7 +33,7 @@ def command(group=None, long=False, *args, **kwargs):
             else:
                 async def send(*args, **kwargs):
                     await ctx.interaction.response.send_message(*args, **kwargs, ephemeral=True)
-
+            ctx._send = ctx.send
             ctx.send = send
 
             try:
@@ -61,7 +61,7 @@ def command(group=None, long=False, *args, **kwargs):
                                     description="Something went wrong 😥"),
                         ephemeral=True)
                 logger = logging.getLogger(f'discord.custom.command.{func.__name__}')
-                logger.error(e)
+                logger.error(e, exc_info=True, stack_info=True)
 
             return value
 

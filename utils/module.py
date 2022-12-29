@@ -29,9 +29,12 @@ def get_all_modules(src: str) -> list[str]:
 def get_setup(module: str):
     try:
         return getattr(importlib.import_module(f"{module}"), "setup")
-    except TypeError:
+    except TypeError as e:
+        print(e)
         return None
-    except ModuleNotFoundError:
+    except ModuleNotFoundError as e:
+        print(e)
         return None
-    except AttributeError:
+    except AttributeError as e:
+        print(e)
         return None
