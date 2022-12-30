@@ -23,8 +23,3 @@ class Meme(commands.GroupCog, group_name='meme'):
     async def search_meme(self, ctx, keywords: str):
         url = get_random_meme(keywords)
         await ctx.send(url)
-# async def setup(bot: commands.Bot):
-#     @command(group=bot)
-#     async def meme(ctx: commands.Context, keyword: Optional[str]):
-#         url = get_random_meme(keyword)
-#         await ctx.send(url)
