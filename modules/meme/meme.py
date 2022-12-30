@@ -1,13 +1,7 @@
-import asyncio
-from typing import Optional
-
 from discord.ext import commands
-from discord.app_commands.commands import Command
-from discord.ui import View
 
-from modules.meme.humorApi import get_random_meme
+from modules.meme.humor_api import get_random_meme
 from utils.command import command
-from utils.errors import DiscordException
 
 
 class Meme(commands.GroupCog, group_name='meme'):
