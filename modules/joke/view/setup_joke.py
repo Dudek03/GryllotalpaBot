@@ -15,8 +15,9 @@ class ShowAnswerButton(discord.ui.Button['answer']):
 
     async def callback(self, interaction):
         self.ui.view.clear_items()
+        embed = Embed(title=self.ui.setup,
+                      description=self.ui.answer,
+                      color=discord.Color.blue())
         await interaction.response.edit_message(content="",
-                                                embed=Embed(title=self.ui.setup,
-                                                            description=self.ui.answer,
-                                                            color=discord.Color.blue()),
+                                                embed=embed,
                                                 view=self.view)

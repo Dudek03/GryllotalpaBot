@@ -12,17 +12,14 @@ class JokeUI:
         self.ctx = ctx
         self.setup = setup
         self.answer = answer
-        self.interaction = None
-        self.message = None
         self.view = View(timeout=None)
 
     async def init(self):
         setup_joke(self.view, self)
-        self.message = await self.ctx._send(
+        await self.ctx._send(
             content="",
             embed=Embed(title=self.setup,
                         description="",
                         color=discord.Color.blue()),
             view=self.view
         )
-        self.interaction = self.ctx.interaction
