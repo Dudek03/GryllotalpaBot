@@ -105,7 +105,12 @@ class Music(commands.GroupCog, group_name='voice'):
 
         vc = ctx.voice_client
         await self.join(channel, vc)
-        await ctx.send(f"**Joined `{channel}`**")
+        embed = discord.Embed(
+            title="Joined",
+            description=f"Joined {channel.mention}",
+            color=discord.Color.green(),
+        )
+        await ctx.send(embed=embed)
         await self.update_ui(ctx)
 
     @command(name="play", description="streams music", long=True)
@@ -116,9 +121,7 @@ class Music(commands.GroupCog, group_name='voice'):
             raise DiscordException("Need to join first")
 
         embed = await self.play(ctx, search, count)
-
         await ctx.send(embed=embed)
-
         await self.update_ui(ctx)
 
     @command(
@@ -156,7 +159,11 @@ class Music(commands.GroupCog, group_name='voice'):
             return
 
         vc.pause()
-        await ctx.send("Paused ⏸️")
+        embed = discord.Embed(
+            title="Paused ⏸️",
+            color=discord.Color.green(),
+        )
+        await ctx.send(embed=embed)
         await self.update_ui(ctx)
 
     @command(name="resume", description="resumes music")
@@ -174,7 +181,11 @@ class Music(commands.GroupCog, group_name='voice'):
             return
 
         vc.resume()
-        await ctx.send("Resuming ▶")
+        embed = discord.Embed(
+            title="Resuming ▶",
+            color=discord.Color.green(),
+        )
+        await ctx.send(embed=embed)
         await self.update_ui(ctx)
 
     @command(
@@ -238,7 +249,12 @@ class Music(commands.GroupCog, group_name='voice'):
 
         player = self.get_player(ctx)
         player.queue._queue.clear()
-        await ctx.send("**Cleared**")
+        embed = discord.Embed(
+            title="Cleared",
+            description=f"Queue cleared ♻️",
+            color=discord.Color.green(),
+        )
+        await ctx.send(embed=embed)
         await self.update_ui(ctx)
 
     @command(
@@ -286,7 +302,12 @@ class Music(commands.GroupCog, group_name='voice'):
         if not vc or not vc.is_connected():
             raise DiscordException("I'm not connected to a voice channel")
 
-        await ctx.send("**Successfully disconnected**")
+        embed = discord.Embed(
+            title="Disconnected",
+            description=f"Successfully disconnected 👋",
+            color=discord.Color.green(),
+        )
+        await ctx.send(embed=embed)
 
         await self.cleanup(ctx.guild)
         await self.update_ui(ctx)
