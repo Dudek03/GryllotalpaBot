@@ -255,7 +255,6 @@ class Music(commands.GroupCog, group_name='voice'):
             color=discord.Color.green(),
         )
         await ctx.send(embed=embed)
-        await ctx.send("**Cleared**")
         await self.update_ui(ctx)
 
     @command(
