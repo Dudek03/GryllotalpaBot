@@ -1,6 +1,6 @@
 from discord.ext import commands
 
-from modules.joke.jokeApi import get_random_joke
+from modules.joke.joke_api import get_random_joke
 from modules.joke.ui import JokeUI
 from utils.command import command
 

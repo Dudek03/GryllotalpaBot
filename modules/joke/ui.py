@@ -3,7 +3,7 @@ from discord import Embed
 from discord.ext import commands
 from discord.ui import View
 
-from modules.joke.view.setupJoke import setup_joke
+from modules.joke.view.setup_joke import setup_joke
 
 
 class JokeUI:
@@ -26,13 +26,3 @@ class JokeUI:
             view=self.view
         )
         self.interaction = self.ctx.interaction
-
-    async def show_answer(self):
-        self.view.clear_items()
-        await self.message.edit(
-            content="",
-            embed=Embed(title=self.setup,
-                        description=self.answer,
-                        color=discord.Color.blue()),
-            view=self.view
-        )
