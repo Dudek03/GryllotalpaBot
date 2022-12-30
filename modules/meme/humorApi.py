@@ -16,7 +16,6 @@ def get_random_meme(keyword: Union[str, None]):
     if keyword is not None:
         url = f"https://api.humorapi.com/memes/random?keywords={urllib.parse.quote(keyword)}"
     response = requests.request("GET", url, headers=headers)
-    print(response.status_code)
-    if response.status_code != 400:
+    if response.status_code != 200:
         raise DiscordException("Meme not Found")
     return response.json()['url']
