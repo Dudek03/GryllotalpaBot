@@ -67,12 +67,18 @@ class Music(commands.GroupCog, group_name='voice'):
                     f"Connecting to channel: <{channel}> timed out."
                 )
 
-    async def play(self, ctx, search, count):
+    async def search_and_play(self, ctx, search, count):
+        sources = await self.search(ctx, search, count)
+        return await self.play(sources)
+
+    async def search(self, ctx, search, count):
+        return await YTDLSource.create_source(ctx.author,
+                                              search,
+                                              loop=self.bot.loop,
+                                              count=count)
+
+    async def play(self, ctx, sources: list):
         player = self.get_player(ctx)
-        sources = await YTDLSource.create_source(ctx.author,
-                                                 search,
-                                                 loop=self.bot.loop,
-                                                 count=count)
         asyncio.ensure_future(player.add_to_queue(sources))
 
         queue_str = '\n'.join([f"[{d['title']}]({d['webpage_url']})" for d in sources])
@@ -120,7 +126,24 @@ class Music(commands.GroupCog, group_name='voice'):
         if not vc:
             raise DiscordException("Need to join first")
 
-        embed = await self.play(ctx, search, count)
+        embed = await self.search_and_play(ctx, search, count)
+        await ctx.send(embed=embed)
+        await self.update_ui(ctx)
+
+    @command(name="play_file", description="streams music", long=True)
+    async def play_file_(self, ctx, attachment: discord.Attachment):
+        vc = ctx.voice_client
+
+        if not vc:
+            raise DiscordException("Need to join first")
+        if not attachment.content_type.startswith("audio"):
+            raise DiscordException(f"Please upload audio file. (Invalid file type: `{attachment.content_type}`)")
+
+        embed = await self.play(ctx, [{
+            "webpage_url": attachment.url,
+            "requester": ctx.author,
+            "title": attachment.filename,
+        }])
         await ctx.send(embed=embed)
         await self.update_ui(ctx)
 
