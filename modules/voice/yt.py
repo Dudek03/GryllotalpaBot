@@ -46,14 +46,17 @@ class YTDLSource(discord.PCMVolumeTransformer):
         to_run = partial(ytdl.extract_info, url=search, download=False)
         data = await loop.run_in_executor(None, to_run)
 
-        if count < 0:
-            raise DiscordException("Invalid count")
+        if data.get("entries") is not None:
+            if count < 0:
+                raise DiscordException("Invalid count")
 
-        if "entries" in data:
-            if count == 0:
-                data = data["entries"]
-            else:
-                data = data["entries"][:count]
+            if "entries" in data:
+                if count == 0:
+                    data = data["entries"]
+                else:
+                    data = data["entries"][:count]
+        else:
+            data = [data]
 
         return [{
             "webpage_url": d["webpage_url"],

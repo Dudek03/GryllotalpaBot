@@ -10,7 +10,7 @@ from utils.errors import DiscordException
 
 async def setup(bot: commands.Bot):
     @command(group=bot)
-    async def create_unsave(ctx: commands.Context, name: str, code: str, description: Optional[str] = "..."):
+    async def create_unsafe(ctx: commands.Context, name: str, code: str, description: Optional[str] = "..."):
         guild = ctx.interaction.guild
 
         async def callback(interaction: Interaction) -> None:
