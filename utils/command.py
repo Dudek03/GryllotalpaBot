@@ -6,7 +6,7 @@ from discord import Embed, Color
 from utils.errors import DiscordException
 
 
-def command(group=None, long=False, *args, **kwargs):
+def command(group=None, long=False, is_hidden=True, *args, **kwargs):
     if group is None:
         group = commands
 
@@ -25,14 +25,14 @@ def command(group=None, long=False, *args, **kwargs):
                 raise Exception("Missing context")
 
             if long:
-                await ctx.interaction.response.defer(ephemeral=True)
+                await ctx.interaction.response.defer(ephemeral=is_hidden)
 
             if long:
                 async def send(*args, **kwargs):
-                    await ctx.interaction.followup.send(*args, **kwargs, ephemeral=True)
+                    await ctx.interaction.followup.send(*args, **kwargs, ephemeral=is_hidden)
             else:
                 async def send(*args, **kwargs):
-                    await ctx.interaction.response.send_message(*args, **kwargs, ephemeral=True)
+                    await ctx.interaction.response.send_message(*args, **kwargs, ephemeral=is_hidden)
             ctx._send = ctx.send
             ctx.send = send
 
