@@ -69,7 +69,7 @@ class Music(commands.GroupCog, group_name='voice'):
 
     async def search_and_play(self, ctx, search, count):
         sources = await self.search(ctx, search, count)
-        return await self.play(sources)
+        return await self.play(ctx, sources)
 
     async def search(self, ctx, search, count):
         return await YTDLSource.create_source(ctx.author,
@@ -81,7 +81,12 @@ class Music(commands.GroupCog, group_name='voice'):
         player = self.get_player(ctx)
         asyncio.ensure_future(player.add_to_queue(sources))
 
-        queue_str = '\n'.join([f"[{d['title']}]({d['webpage_url']})" for d in sources])
+        if len(sources) > 20:
+            queue_str = '\n'.join(
+                [f"[{d['title']}]({d['webpage_url']})" for d in sources[:20]]) + f"\nAnd {len(sources) - 20} more."
+        else:
+            queue_str = '\n'.join(
+                [f"[{d['title']}]({d['webpage_url']})" for d in sources])
         embed = discord.Embed(
             title="",
             description=f"Queued\n {queue_str}\n[{ctx.author.mention}]",
@@ -300,11 +305,13 @@ class Music(commands.GroupCog, group_name='voice'):
             itertools.islice(player.queue._queue, 0, int(len(player.queue._queue)))
         )
         fmt = "\n".join(
-            f"`{(upcoming.index(_)) + 1}.` [{_['title']}]({_['webpage_url']}) | `Requested by: {_['requester']}`\n"
-            for _ in upcoming
+            f"`{(upcoming.index(_)) + 1}.` [{_['title']}]({_['webpage_url']}) [{_['requester'].mention}]"
+            for _ in upcoming[:20]
         )
+        if len(upcoming) > 20:
+            fmt += "\nAnd more..."
         fmt = (
-            f"\n__Now Playing__:\n[{vc.source.title}]({vc.source.web_url}) | ` {get_duration(ctx)} Requested by: {vc.source.requester}`\n\n__Up Next:__\n"
+            f"\n__Now Playing__:\n[{vc.source.title}]({vc.source.web_url}) [{vc.source.requester.mention}] | `{get_duration(ctx)}`\n\n__Up Next:__\n"
             + fmt
             + f"\n**{len(upcoming)} songs in queue**"
         )
@@ -342,3 +349,7 @@ class Music(commands.GroupCog, group_name='voice'):
         ui = UI(ctx, self)
         await ui.init()
         self.uis[ctx.guild.id] = ui
+        try:
+            self.players[ctx.guild.id].set_ui(ui)
+        except Exception as e:
+            print(e)
