@@ -16,8 +16,8 @@ class AddModal(discord.ui.Modal, title='Play'):
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        embed = await self.ui.music_cog.search_and_play(self.ui.ctx, self.search.value, 1)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        res = await self.ui.music_cog.search_and_play(self.ui.ctx, self.search.value, 1)
+        await interaction.response.send_message(**res, ephemeral=True)
         await self.ui.update()
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:

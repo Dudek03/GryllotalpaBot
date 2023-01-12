@@ -69,9 +69,51 @@ class Music(commands.GroupCog, group_name='voice'):
                 )
 
     async def search_and_play(self, ctx, search: str, count):
-        sources = await self.search(ctx, search, count)
-        await self.play(ctx, sources)
-        return await self.get_list_of_songs(ctx, sources)
+        OPTIONS_COUNT = 5  # TODO: number can be added to settings
+        sources = await self.search(ctx, search, OPTIONS_COUNT if count == 1 else count)
+
+        if len(sources) <= 0:
+            raise DiscordException("Nothing found 😥")
+        elif len(sources) > 1 and count == 1:
+            return await self.select_song(ctx, sources)
+        else:
+            await self.play(ctx, sources)
+            embed = await self.get_list_of_songs(ctx, sources)
+            return {"embed": embed}
+
+    async def select_song(self, ctx, sources):
+        queue_str = '\n'.join(
+            [f"**{i + 1}.** [{sources[i]['title']}]({sources[i]['webpage_url']})" for i in range(len(sources))])
+        embed = discord.Embed(
+            title="Add songs",
+            description=f"**Select to add song:** \n {queue_str}\n[{ctx.author.mention}]",
+            color=discord.Color.green(),
+        )
+        view = View()
+        select = discord.ui.Select(placeholder="Select song", max_values=1, min_values=1)
+        for i in range(len(sources)):
+            label = f"{i + 1}. " + sources[i]['title']
+            if len(label) > 100:
+                label = label[:95]
+                label += "..."
+            select.add_option(label=label, value=str(i))
+
+        async def select_callback(interaction):
+            i = int(select.values[0])
+            embed = discord.Embed(
+                title="Add songs",
+                description=f"**Selected:** \n**{i + 1}.** [{sources[i]['title']}]({sources[i]['webpage_url']})\n[{ctx.author.mention}]",
+                color=discord.Color.green(),
+            )
+
+            await interaction.response.edit_message(view=None, embed=embed)
+            await self.play_async(ctx, [sources[i]])
+            await self.update_ui(ctx)
+
+        select.callback = select_callback
+
+        view.add_item(select)
+        return {"embed": embed, "view": view}
 
     async def search(self, ctx, search, count):
         return await YTDLSource.create_source(ctx.author,
@@ -138,48 +180,9 @@ class Music(commands.GroupCog, group_name='voice'):
         if not vc:
             raise DiscordException("Need to join first")
 
-        OPTIONS_COUNT = 5  # TODO: number can be added to settings
-        sources = await self.search(ctx, search, OPTIONS_COUNT if count == 1 else count)
-        if len(sources) <= 0:
-            raise DiscordException("Nothing found 😥")
-        elif len(sources) > 0 and count == 1:
-            queue_str = '\n'.join(
-                [f"**{i + 1}.** [{sources[i]['title']}]({sources[i]['webpage_url']})" for i in range(len(sources))])
-            embed = discord.Embed(
-                title="Add songs",
-                description=f"**Select to add song:** \n {queue_str}\n[{ctx.author.mention}]",
-                color=discord.Color.green(),
-            )
-            view = View()
-            select = discord.ui.Select(placeholder="Select song", max_values=1, min_values=1)
-            for i in range(len(sources)):
-                label = f"{i + 1}. " + sources[i]['title']
-                if len(label) > 100:
-                    label = label[:95]
-                    label += "..."
-                select.add_option(label=label, value=str(i))
-
-            async def select_callback(interaction):
-                i = int(select.values[0])
-                embed = discord.Embed(
-                    title="Add songs",
-                    description=f"**Selected:** \n**{i + 1}.** [{sources[i]['title']}]({sources[i]['webpage_url']})\n[{ctx.author.mention}]",
-                    color=discord.Color.green(),
-                )
-
-                await interaction.response.edit_message(view=None, embed=embed)
-                await self.play_async(ctx, [sources[i]])
-                await self.update_ui(ctx)
-
-            select.callback = select_callback
-
-            view.add_item(select)
-            await ctx.send(embed=embed, view=view)
-        else:
-            await self.play(ctx, sources)
-            embed = await self.get_list_of_songs(ctx, sources)
-            await ctx.send(embed=embed)
-            await self.update_ui(ctx)
+        res = await self.search_and_play(ctx, search, count)
+        await ctx.send(**res)
+        await self.update_ui(ctx)
 
     @command(name="play_file", description="streams music", long=True)
     async def play_file_(self, ctx, attachment: discord.Attachment):
