@@ -10,6 +10,7 @@ from modules.voice.utils import get_duration
 from modules.voice.yt import YTDLSource
 from utils.command import command
 from utils.errors import DiscordException
+from discord.ui import View
 
 
 class Music(commands.GroupCog, group_name='voice'):
@@ -67,9 +68,10 @@ class Music(commands.GroupCog, group_name='voice'):
                     f"Connecting to channel: <{channel}> timed out."
                 )
 
-    async def search_and_play(self, ctx, search, count):
+    async def search_and_play(self, ctx, search: str, count):
         sources = await self.search(ctx, search, count)
-        return await self.play(ctx, sources)
+        await self.play(ctx, sources)
+        return await self.get_list_of_songs(ctx, sources)
 
     async def search(self, ctx, search, count):
         return await YTDLSource.create_source(ctx.author,
@@ -81,6 +83,11 @@ class Music(commands.GroupCog, group_name='voice'):
         player = self.get_player(ctx)
         asyncio.ensure_future(player.add_to_queue(sources))
 
+    async def play_async(self, ctx, sources: list):
+        player = self.get_player(ctx)
+        await player.add_to_queue(sources)
+
+    async def get_list_of_songs(self, ctx, sources):
         if len(sources) > 20:
             queue_str = '\n'.join(
                 [f"[{d['title']}]({d['webpage_url']})" for d in sources[:20]]) + f"\nAnd {len(sources) - 20} more."
@@ -88,7 +95,7 @@ class Music(commands.GroupCog, group_name='voice'):
             queue_str = '\n'.join(
                 [f"[{d['title']}]({d['webpage_url']})" for d in sources])
         embed = discord.Embed(
-            title="",
+            title="Add songs",
             description=f"Queued\n {queue_str}\n[{ctx.author.mention}]",
             color=discord.Color.green(),
         )
@@ -131,9 +138,48 @@ class Music(commands.GroupCog, group_name='voice'):
         if not vc:
             raise DiscordException("Need to join first")
 
-        embed = await self.search_and_play(ctx, search, count)
-        await ctx.send(embed=embed)
-        await self.update_ui(ctx)
+        OPTIONS_COUNT = 5  # TODO: number can be added to settings
+        sources = await self.search(ctx, search, OPTIONS_COUNT if count == 1 else count)
+        if len(sources) <= 0:
+            raise DiscordException("Nothing found 😥")
+        elif len(sources) > 0 and count == 1:
+            queue_str = '\n'.join(
+                [f"**{i + 1}.** [{sources[i]['title']}]({sources[i]['webpage_url']})" for i in range(len(sources))])
+            embed = discord.Embed(
+                title="Add songs",
+                description=f"**Select to add song:** \n {queue_str}\n[{ctx.author.mention}]",
+                color=discord.Color.green(),
+            )
+            view = View()
+            select = discord.ui.Select(placeholder="Select song", max_values=1, min_values=1)
+            for i in range(len(sources)):
+                label = f"{i + 1}. " + sources[i]['title']
+                if len(label) > 100:
+                    label = label[:95]
+                    label += "..."
+                select.add_option(label=label, value=str(i))
+
+            async def select_callback(interaction):
+                i = int(select.values[0])
+                embed = discord.Embed(
+                    title="Add songs",
+                    description=f"**Selected:** \n**{i + 1}.** [{sources[i]['title']}]({sources[i]['webpage_url']})\n[{ctx.author.mention}]",
+                    color=discord.Color.green(),
+                )
+
+                await interaction.response.edit_message(view=None, embed=embed)
+                await self.play_async(ctx, [sources[i]])
+                await self.update_ui(ctx)
+
+            select.callback = select_callback
+
+            view.add_item(select)
+            await ctx.send(embed=embed, view=view)
+        else:
+            await self.play(ctx, sources)
+            embed = await self.get_list_of_songs(ctx, sources)
+            await ctx.send(embed=embed)
+            await self.update_ui(ctx)
 
     @command(name="play_file", description="streams music", long=True)
     async def play_file_(self, ctx, attachment: discord.Attachment):
@@ -144,11 +190,13 @@ class Music(commands.GroupCog, group_name='voice'):
         if not attachment.content_type.startswith("audio"):
             raise DiscordException(f"Please upload audio file. (Invalid file type: `{attachment.content_type}`)")
 
-        embed = await self.play(ctx, [{
+        sources = [{
             "webpage_url": attachment.url,
             "requester": ctx.author,
             "title": attachment.filename,
-        }])
+        }]
+        await self.play(ctx, sources)
+        embed = await self.get_list_of_songs(ctx, sources)
         await ctx.send(embed=embed)
         await self.update_ui(ctx)
 
