@@ -10,6 +10,8 @@ from modules.voice.utils import get_duration
 from modules.voice.yt import YTDLSource
 from utils.command import command
 from utils.errors import DiscordException
+from discord.ui import View
+from modules.voice.yt import is_url
 
 
 class Music(commands.GroupCog, group_name='voice'):
@@ -67,9 +69,52 @@ class Music(commands.GroupCog, group_name='voice'):
                     f"Connecting to channel: <{channel}> timed out."
                 )
 
-    async def search_and_play(self, ctx, search, count):
-        sources = await self.search(ctx, search, count)
-        return await self.play(sources)
+    async def search_and_play(self, ctx, search: str, count):
+        OPTIONS_COUNT = 5  # TODO: number can be added to settings
+        sources = await self.search(ctx, search, OPTIONS_COUNT if count == 0 and not is_url(search) else count)
+
+        if len(sources) <= 0:
+            raise DiscordException("Nothing found 😥")
+        elif len(sources) > 1 and count == 0:
+            return await self.select_song(ctx, sources)
+        else:
+            await self.play(ctx, sources)
+            embed = await self.get_list_of_songs(ctx, sources)
+            return {"embed": embed}
+
+    async def select_song(self, ctx, sources):
+        queue_str = '\n'.join(
+            [f"**{i + 1}.** [{sources[i]['title']}]({sources[i]['webpage_url']})" for i in range(len(sources))])
+        embed = discord.Embed(
+            title="Add songs",
+            description=f"**Select to add song:** \n {queue_str}\n[{ctx.author.mention}]",
+            color=discord.Color.green(),
+        )
+        view = View()
+        select = discord.ui.Select(placeholder="Select song", max_values=1, min_values=1)
+        for i in range(len(sources)):
+            label = f"{i + 1}. " + sources[i]['title']
+            if len(label) > 100:
+                label = label[:95]
+                label += "..."
+            select.add_option(label=label, value=str(i))
+
+        async def select_callback(interaction):
+            i = int(select.values[0])
+            embed = discord.Embed(
+                title="Add songs",
+                description=f"**Selected:** \n**{i + 1}.** [{sources[i]['title']}]({sources[i]['webpage_url']})\n[{ctx.author.mention}]",
+                color=discord.Color.green(),
+            )
+
+            await interaction.response.edit_message(view=None, embed=embed)
+            await self.play_async(ctx, [sources[i]])
+            await self.update_ui(ctx)
+
+        select.callback = select_callback
+
+        view.add_item(select)
+        return {"embed": embed, "view": view}
 
     async def search(self, ctx, search, count):
         return await YTDLSource.create_source(ctx.author,
@@ -81,9 +126,19 @@ class Music(commands.GroupCog, group_name='voice'):
         player = self.get_player(ctx)
         asyncio.ensure_future(player.add_to_queue(sources))
 
-        queue_str = '\n'.join([f"[{d['title']}]({d['webpage_url']})" for d in sources])
+    async def play_async(self, ctx, sources: list):
+        player = self.get_player(ctx)
+        await player.add_to_queue(sources)
+
+    async def get_list_of_songs(self, ctx, sources):
+        if len(sources) > 20:
+            queue_str = '\n'.join(
+                [f"[{d['title']}]({d['webpage_url']})" for d in sources[:20]]) + f"\nAnd {len(sources) - 20} more."
+        else:
+            queue_str = '\n'.join(
+                [f"[{d['title']}]({d['webpage_url']})" for d in sources])
         embed = discord.Embed(
-            title="",
+            title="Add songs",
             description=f"Queued\n {queue_str}\n[{ctx.author.mention}]",
             color=discord.Color.green(),
         )
@@ -120,14 +175,14 @@ class Music(commands.GroupCog, group_name='voice'):
         await self.update_ui(ctx)
 
     @command(name="play", description="streams music", long=True)
-    async def play_(self, ctx, search: str, count=1):
+    async def play_(self, ctx, search: str, count=0):
         vc = ctx.voice_client
 
         if not vc:
             raise DiscordException("Need to join first")
 
-        embed = await self.search_and_play(ctx, search, count)
-        await ctx.send(embed=embed)
+        res = await self.search_and_play(ctx, search, count)
+        await ctx.send(**res)
         await self.update_ui(ctx)
 
     @command(name="play_file", description="streams music", long=True)
@@ -139,11 +194,13 @@ class Music(commands.GroupCog, group_name='voice'):
         if not attachment.content_type.startswith("audio"):
             raise DiscordException(f"Please upload audio file. (Invalid file type: `{attachment.content_type}`)")
 
-        embed = await self.play(ctx, [{
+        sources = [{
             "webpage_url": attachment.url,
             "requester": ctx.author,
             "title": attachment.filename,
-        }])
+        }]
+        await self.play(ctx, sources)
+        embed = await self.get_list_of_songs(ctx, sources)
         await ctx.send(embed=embed)
         await self.update_ui(ctx)
 
@@ -300,11 +357,13 @@ class Music(commands.GroupCog, group_name='voice'):
             itertools.islice(player.queue._queue, 0, int(len(player.queue._queue)))
         )
         fmt = "\n".join(
-            f"`{(upcoming.index(_)) + 1}.` [{_['title']}]({_['webpage_url']}) | `Requested by: {_['requester']}`\n"
-            for _ in upcoming
+            f"`{(upcoming.index(_)) + 1}.` [{_['title']}]({_['webpage_url']}) [{_['requester'].mention}]"
+            for _ in upcoming[:20]
         )
+        if len(upcoming) > 20:
+            fmt += "\nAnd more..."
         fmt = (
-            f"\n__Now Playing__:\n[{vc.source.title}]({vc.source.web_url}) | ` {get_duration(ctx)} Requested by: {vc.source.requester}`\n\n__Up Next:__\n"
+            f"\n__Now Playing__:\n[{vc.source.title}]({vc.source.web_url}) [{vc.source.requester.mention}] | `{get_duration(ctx)}`\n\n__Up Next:__\n"
             + fmt
             + f"\n**{len(upcoming)} songs in queue**"
         )
@@ -342,3 +401,7 @@ class Music(commands.GroupCog, group_name='voice'):
         ui = UI(ctx, self)
         await ui.init()
         self.uis[ctx.guild.id] = ui
+        try:
+            self.players[ctx.guild.id].set_ui(ui)
+        except Exception as e:
+            print(e)
