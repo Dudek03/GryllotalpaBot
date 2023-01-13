@@ -11,6 +11,7 @@ from modules.voice.yt import YTDLSource
 from utils.command import command
 from utils.errors import DiscordException
 from discord.ui import View
+from modules.voice.yt import is_url
 
 
 class Music(commands.GroupCog, group_name='voice'):
@@ -70,11 +71,11 @@ class Music(commands.GroupCog, group_name='voice'):
 
     async def search_and_play(self, ctx, search: str, count):
         OPTIONS_COUNT = 5  # TODO: number can be added to settings
-        sources = await self.search(ctx, search, OPTIONS_COUNT if count == 1 else count)
+        sources = await self.search(ctx, search, OPTIONS_COUNT if count == 0 and not is_url(search) else count)
 
         if len(sources) <= 0:
             raise DiscordException("Nothing found 😥")
-        elif len(sources) > 1 and count == 1:
+        elif len(sources) > 1 and count == 0:
             return await self.select_song(ctx, sources)
         else:
             await self.play(ctx, sources)
@@ -174,7 +175,7 @@ class Music(commands.GroupCog, group_name='voice'):
         await self.update_ui(ctx)
 
     @command(name="play", description="streams music", long=True)
-    async def play_(self, ctx, search: str, count=1):
+    async def play_(self, ctx, search: str, count=0):
         vc = ctx.voice_client
 
         if not vc:
