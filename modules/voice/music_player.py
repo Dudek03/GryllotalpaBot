@@ -28,6 +28,9 @@ class MusicPlayer:
 
         ctx.bot.loop.create_task(self.player_loop())
 
+    def set_ui(self, ui):
+        self._ui = ui
+
     async def player_loop(self):
         """Our main player loop."""
         await self.update_ui()

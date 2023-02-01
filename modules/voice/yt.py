@@ -4,7 +4,7 @@ from functools import partial
 import discord
 import youtube_dl
 from youtube_dl import YoutubeDL
-
+from youtube_search import YoutubeSearch
 from utils.errors import DiscordException
 
 youtube_dl.utils.bug_reports_message = lambda: ""
@@ -26,6 +26,10 @@ ytdlopts = {
 ytdl = YoutubeDL(ytdlopts)
 
 
+def is_url(search: str):
+    return search.startswith("http://") or search.startswith("https://")
+
+
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, requester):
         super().__init__(source)
@@ -43,26 +47,33 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
         loop = loop or asyncio.get_event_loop()
 
-        to_run = partial(ytdl.extract_info, url=search, download=False)
-        data = await loop.run_in_executor(None, to_run)
+        if is_url(search):
+            to_run = partial(ytdl.extract_info, url=search, download=False)
+            data = await loop.run_in_executor(None, to_run)
 
-        if data.get("entries") is not None:
-            if count < 0:
-                raise DiscordException("Invalid count")
+            if data.get("entries") is not None:
+                if count < 0:
+                    raise DiscordException("Invalid count")
 
-            if "entries" in data:
-                if count == 0:
-                    data = data["entries"]
-                else:
-                    data = data["entries"][:count]
+                if "entries" in data:
+                    if count == 0:
+                        data = data["entries"]
+                    else:
+                        data = data["entries"][:count]
+            else:
+                data = [data]
+            return [{
+                "webpage_url": d["webpage_url"],
+                "requester": author,
+                "title": d["title"],
+            } for d in data]
         else:
-            data = [data]
-
-        return [{
-            "webpage_url": d["webpage_url"],
-            "requester": author,
-            "title": d["title"],
-        } for d in data]
+            data = YoutubeSearch(search, max_results=count).to_dict()
+            return [{
+                "webpage_url": "https://www.youtube.com" + d["url_suffix"],
+                "requester": author,
+                "title": d["title"],
+            } for d in data]
 
     @classmethod
     async def regather_stream(cls, data, *, loop):
