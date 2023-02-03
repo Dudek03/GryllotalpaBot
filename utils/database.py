@@ -1,7 +1,10 @@
 import os
+import time
+
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from models.base import Base
+from models.connection_time import ConnectionTime
 from models.log import Log
 
 
@@ -38,3 +41,14 @@ class Database:
             for row in session.scalars(stmt):
                 result.append(row)
             return result
+
+    def add_time_on_channel(self, server_id: int, channel_id: int, user_id: int, time: int):
+        with Session(self.engine) as session:
+            record = ConnectionTime(
+                server_id=server_id,
+                channel_id=channel_id,
+                user_id=user_id,
+                time=time
+            )
+            session.add(record)
+            session.commit()
