@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Union
 
 from sqlalchemy import create_engine, func, desc
@@ -21,13 +22,14 @@ class Database:
         self.engine = create_engine(os.getenv("DATABASE_URL"), echo=bool(os.getenv("DATABASE_LOG")))
         Base.metadata.create_all(self.engine)
 
-    def add_time_on_channel(self, server_id: int, channel_id: int, user_id: int, time: int):
+    def add_time_on_channel(self, server_id: int, channel_id: int, user_id: int, timeChannel: int):
         with Session(self.engine) as session:
             record = ConnectionTime(
                 server_id=server_id,
                 channel_id=channel_id,
                 user_id=user_id,
-                time=time
+                time=timeChannel,
+                date=int(time.time())
             )
             session.add(record)
             session.commit()
