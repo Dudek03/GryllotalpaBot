@@ -38,9 +38,9 @@ class VoiceStatistics(commands.GroupCog, group_name='voicestats'):
         await self.generate_top10(ctx, result)
 
     @command(name="channel", description="get random meme with keyword", is_hidden=False)
-    async def search_meme(self, ctx, channel_name: str):
-        channel = get(ctx.guild.channels, name=channel_name)
-        if channel is None:
-            raise DiscordException("Channel not found")
+    async def search_meme(self, ctx, channel: discord.VoiceChannel):
+        # channel = get(ctx.guild.channels, name=channel_name)
+        # if channel is None:
+        #     raise DiscordException("Channel not found")
         result = Database().top10_voice_channels(server_id=ctx.guild.id, channel_id=channel.id)
         await self.generate_top10(ctx, result)
