@@ -66,6 +66,7 @@ async def main():
         logger.info(f"Found {len(exts)} modules")
         logger.info(f"Modules: {exts}")
         intents = discord.Intents.default()
+        intents.members = True
         intents.message_content = True
         async with CustomBot(commands.when_mentioned_or('$'), web_client=our_client, initial_extensions=exts,
                              intents=intents, testing_guild_id=int(os.getenv('TESTING_GUILD_ID', ''))) as bot:
