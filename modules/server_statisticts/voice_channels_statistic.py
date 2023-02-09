@@ -1,9 +1,4 @@
-# TEMPORARY DATABASE IT WILL BE CHANGE AFTER IMPLEMENT DATABASE
-import datetime
 import time
-
-import discord
-from discord import Member
 
 from utils.database import Database
 
