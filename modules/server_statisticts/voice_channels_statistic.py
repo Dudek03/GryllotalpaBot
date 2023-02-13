@@ -2,8 +2,6 @@ import time
 
 from utils.database import Database
 
-rows = dict()
-
 
 class VoiceChannelStatistic:
     def __init__(self):

@@ -29,7 +29,7 @@ class Database:
                 channel_id=channel_id,
                 user_id=user_id,
                 time=timeChannel,
-                date=int(time.time())
+                timestamp=int(time.time())
             )
             session.add(record)
             session.commit()

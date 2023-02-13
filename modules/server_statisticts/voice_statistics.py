@@ -33,11 +33,11 @@ class VoiceStatistics(commands.GroupCog, group_name='voicestats'):
         )
 
     @command(name="general", description="Get top 10 active users on voice channels", is_hidden=False)
-    async def top10_voice_channels(self, ctx):
+    async def top10_active_users_on_voice_channels(self, ctx):
         result = Database().top10_voice_channels(server_id=ctx.guild.id, channel_id=None)
         await self.generate_top10(ctx, result)
 
     @command(name="channel", description="get random meme with keyword", is_hidden=False)
-    async def search_meme(self, ctx, channel: discord.VoiceChannel):
+    async def top10_active_users_on_voice_channel(self, ctx, channel: discord.VoiceChannel):
         result = Database().top10_voice_channels(server_id=ctx.guild.id, channel_id=channel.id)
         await self.generate_top10(ctx, result)

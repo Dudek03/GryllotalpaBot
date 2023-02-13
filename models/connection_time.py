@@ -12,4 +12,4 @@ class ConnectionTime(Base):
     channel_id: Mapped[int]
     user_id: Mapped[int]
     time: Mapped[int]
-    date: Mapped[int]
+    timestamp: Mapped[int]
