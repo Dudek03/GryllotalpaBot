@@ -1,5 +1,8 @@
 import time
 
+from sqlalchemy.orm import Session
+
+from models.connection_time import ConnectionTime
 from utils.database import Database
 
 
@@ -7,6 +10,18 @@ class VoiceChannelStatistic:
     def __init__(self):
         self.active_members = {}
         pass
+
+    def register_new_connection_time(self, server_id: int, channel_id: int, user_id: int, timeChannel: int):
+        with Session(Database().engine) as session:
+            record = ConnectionTime(
+                server_id=server_id,
+                channel_id=channel_id,
+                user_id=user_id,
+                time=timeChannel,
+                timestamp=int(time.time())
+            )
+            session.add(record)
+            session.commit()
 
     def find_member_in_tab(self, member, members):
         for m in members:
@@ -48,4 +63,4 @@ class VoiceChannelStatistic:
                 else:
                     l.append(obj)
         for user in disconnected_members:
-            Database().add_time_on_channel(server_id, channel_id, user[0].id, time.time() - user[1])
+            self.register_new_connection_time(server_id, channel_id, user[0].id, time.time() - user[1])
