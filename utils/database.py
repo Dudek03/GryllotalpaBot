@@ -1,8 +1,6 @@
 import os
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
 from models.base import Base
-from models.log import Log
 
 
 class Database:
@@ -15,26 +13,5 @@ class Database:
         return cls.__instance
 
     def _init_(self):
-        self.engine = create_engine(os.getenv("DATABASE_URL"), echo=bool(os.getenv("DATABASE_LOG")))
+        self.engine = create_engine(os.getenv("DATABASE_URL"), echo=os.getenv('DATABASE_LOG', 'False') == "True")
         Base.metadata.create_all(self.engine)
-
-    # Function is only for showing how orm work
-    # TODO: remove later
-    def add_log(self, server_guid: int, text: str):
-        with Session(self.engine) as session:
-            log = Log(
-                server_guid=server_guid,
-                text=text
-            )
-            session.add(log)
-            session.commit()
-
-    # Function is only for showing how orm work
-    # TODO: remove later
-    def get_all_log(self, server_guid: int):
-        with Session(self.engine) as session:
-            stmt = select(Log).where(Log.server_guid.is_(server_guid))
-            result = []
-            for row in session.scalars(stmt):
-                result.append(row)
-            return result
