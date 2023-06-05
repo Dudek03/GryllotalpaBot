@@ -10,6 +10,8 @@ from typing import List, Optional
 import discord
 from discord.ext import commands
 from aiohttp import ClientSession
+
+from modules.server_statisticts.voice_channels_statistic import VoiceChannelStatistic
 from utils.module import get_all_modules
 
 
@@ -26,6 +28,10 @@ class CustomBot(commands.Bot):
         self.web_client = web_client
         self.initial_extensions = initial_extensions
         self.testing_guild_id = testing_guild_id
+        self.voice_channels_statistics = VoiceChannelStatistic()
+
+    async def on_voice_state_update(self, member, before, after):
+        await self.voice_channels_statistics.on_voice_state_update(member, before, after)
 
     async def setup_hook(self) -> None:
         for extension in self.initial_extensions:
@@ -64,6 +70,7 @@ async def main():
         logger.info(f"Found {len(exts)} modules")
         logger.info(f"Modules: {exts}")
         intents = discord.Intents.default()
+        intents.members = True
         intents.message_content = True
         async with CustomBot(commands.when_mentioned_or('$'), web_client=our_client, initial_extensions=exts,
                              intents=intents, testing_guild_id=int(os.getenv('TESTING_GUILD_ID', ''))) as bot:
