@@ -6,3 +6,4 @@ Discord bot wrote by 3 friends because we were bored
 
 - Python 3.11
 - FFmpeg
+- libopus0 (linux)

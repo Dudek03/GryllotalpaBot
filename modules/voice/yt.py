@@ -2,12 +2,10 @@ import asyncio
 from functools import partial
 
 import discord
-import youtube_dl
-from youtube_dl import YoutubeDL
+from yt_dlp import YoutubeDL
 from youtube_search import YoutubeSearch
 from utils.errors import DiscordException
 
-youtube_dl.utils.bug_reports_message = lambda: ""
 
 ytdlopts = {
     "format": "bestaudio/best",
@@ -82,5 +80,4 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
         to_run = partial(ytdl.extract_info, url=data["webpage_url"], download=False)
         data = await loop.run_in_executor(None, to_run)
-
         return cls(discord.FFmpegPCMAudio(data["url"]), data=data, requester=requester)

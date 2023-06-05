@@ -1,4 +1,5 @@
 import asyncio
+import ctypes
 import logging
 import logging.handlers
 import os
@@ -54,6 +55,9 @@ async def main():
     formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+
+    if not discord.opus.is_loaded():
+        discord.opus.load_opus(ctypes.util.find_library('opus'))
 
     async with ClientSession() as our_client:
         exts = get_all_modules("modules")
